@@ -1,12 +1,12 @@
 import { describe, expect, test } from 'vitest';
 
-import type { VercelSource } from '../types';
+import type { SourceRoute } from '../types';
 import { applyPCREMatches, matchPCRE } from './pcre';
 
 type TestCase = {
 	name: string;
 	url: string;
-	route: VercelSource;
+	route: SourceRoute;
 	opts?: { namedOnly?: boolean };
 	expected: { match: boolean; captureGroupKeys: string[]; newDest?: string };
 };

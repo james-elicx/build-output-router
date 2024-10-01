@@ -10,7 +10,7 @@ type HasFieldRequestProperties = {
 };
 
 /**
- * Checks if a Vercel source route's `has` record conditions match a request, and whether the request
+ * Checks if a source route's `has` record conditions match a request, and whether the request
  * destination should be updated based on the `has` record.
  *
  * @param has The `has` record conditions to check against the request.

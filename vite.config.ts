@@ -26,6 +26,13 @@ const getEntryPoints = (baseDir: string) =>
 	Object.fromEntries(getPathsRecursively(baseDir).map((p) => [resolveEntryPath(p, baseDir), p]));
 
 export default defineConfig({
+	test: {
+		coverage: {
+			provider: 'v8',
+			include: ['src'],
+			exclude: ['src/types'],
+		},
+	},
 	build: {
 		outDir: 'dist',
 		emptyOutDir: true,

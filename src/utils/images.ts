@@ -1,6 +1,6 @@
 import type {
+	BuildOutput,
 	Fetcher,
-	VercelBuildOutput,
 	VercelImageFormatWithoutPrefix,
 	VercelImageRemotePattern,
 	VercelImagesConfig,
@@ -171,7 +171,7 @@ export async function handleImageResizingRequest(
 }
 
 type ImageResizingOpts = {
-	buildOutput: VercelBuildOutput;
+	buildOutput: BuildOutput;
 	assetsFetcher: Fetcher;
 	imagesConfig?: VercelImagesConfig;
 };

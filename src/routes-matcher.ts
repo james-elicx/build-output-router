@@ -1,17 +1,14 @@
 import { parse } from 'cookie';
 
 import type {
-	BuildMetadata,
-	ProcessedVercelRoutes,
+	ConfigMetadata,
+	Phase,
 	RequestContext,
-	VercelBuildOutput,
-	VercelHandleValue,
-	VercelPhase,
-	VercelSource,
+	RoutesGroupedByPhase,
+	SourceRoute,
 	VercelWildCard,
-	VercelWildcardConfig,
 } from './types';
-import type { MatchedSetHeaders, MatchPCREResult } from './utils';
+import type { MatchPCREResult, RoutingMatch } from './utils';
 import {
 	applyHeaders,
 	applyPCREMatches,
@@ -22,7 +19,6 @@ import {
 	isUrl,
 	matchPCRE,
 	parseAcceptLanguage,
-	runOrFetchBuildOutputItem,
 } from './utils';
 
 export type CheckRouteStatus = 'skip' | 'next' | 'done' | 'error';
@@ -48,7 +44,7 @@ export class RoutesMatcher {
 	public status: number | undefined;
 
 	/** Headers for the response object */
-	public headers: MatchedSetHeaders;
+	public headers: RoutingMatch['headers'];
 
 	/** Search params for the response object */
 	public searchParams: URLSearchParams;
@@ -79,16 +75,12 @@ export class RoutesMatcher {
 	 */
 	constructor(
 		/** Processed routes from the Vercel build output config. */
-		private routes: ProcessedVercelRoutes,
-		/** Vercel build output. */
-		private output: VercelBuildOutput,
-		/** Request Context object for the request to match */
-		private reqCtx: RequestContext,
-		buildMetadata: BuildMetadata,
-		wildcardConfig?: VercelWildcardConfig,
+		private routes: RoutesGroupedByPhase,
+		private ctx: RequestContext,
+		metadata: ConfigMetadata,
 	) {
-		this.url = new URL(reqCtx.request.url);
-		this.cookies = parse(reqCtx.request.headers.get('cookie') || '');
+		this.url = new URL(ctx.request.url);
+		this.cookies = parse(ctx.request.headers.get('cookie') || '');
 
 		this.path = this.url.pathname || '/';
 		this.headers = { normal: new Headers(), important: new Headers() };
@@ -98,9 +90,8 @@ export class RoutesMatcher {
 		this.checkPhaseCounter = 0;
 		this.middlewareInvoked = [];
 
-		this.wildcardMatch = wildcardConfig?.find((w) => w.domain === this.url.hostname);
-
-		this.locales = new Set(buildMetadata.collectedLocales);
+		this.wildcardMatch = metadata.wildcardConfig?.find((w) => w.domain === this.url.hostname);
+		this.locales = metadata.locales;
 	}
 
 	/**
@@ -110,17 +101,17 @@ export class RoutesMatcher {
 	 * @param checkStatus Whether to check the status code of the route.
 	 * @returns The source path match result if the route matches, otherwise `undefined`.
 	 */
-	private checkRouteMatch(
-		route: VercelSource,
+	private checkRouteMatch = (
+		route: SourceRoute,
 		{ checkStatus, checkIntercept }: { checkStatus: boolean; checkIntercept: boolean },
-	): { routeMatch: MatchPCREResult; routeDest?: string } | undefined {
+	): { routeMatch: MatchPCREResult; routeDest?: string } | undefined => {
 		const srcMatch = matchPCRE(route.src, this.path, route.caseSensitive);
 		if (!srcMatch.match) return;
 
 		// One of the HTTP `methods` conditions must be met - skip if not met.
 		if (
 			route.methods &&
-			!route.methods.map((m) => m.toUpperCase()).includes(this.reqCtx.request.method.toUpperCase())
+			!route.methods.map((m) => m.toUpperCase()).includes(this.ctx.request.method.toUpperCase())
 		) {
 			return;
 		}
@@ -128,7 +119,7 @@ export class RoutesMatcher {
 		const hasFieldProps = {
 			url: this.url,
 			cookies: this.cookies,
-			headers: this.reqCtx.request.headers,
+			headers: this.ctx.request.headers,
 			routeDest: route.dest,
 		};
 
@@ -169,7 +160,7 @@ export class RoutesMatcher {
 		}
 
 		return { routeMatch: srcMatch, routeDest: hasFieldProps.routeDest };
-	}
+	};
 
 	/**
 	 * Processes the response from running a middleware function.
@@ -178,7 +169,7 @@ export class RoutesMatcher {
 	 *
 	 * @param resp Middleware response object.
 	 */
-	private processMiddlewareResp(resp: Response): void {
+	private processMiddlewareResp = (resp: Response): void => {
 		const overrideKey = 'x-middleware-override-headers';
 		const overrideHeader = resp.headers.get(overrideKey);
 		if (overrideHeader) {
@@ -188,11 +179,11 @@ export class RoutesMatcher {
 				const valueKey = `x-middleware-request-${key}`;
 				const value = resp.headers.get(valueKey);
 
-				if (this.reqCtx.request.headers.get(key) !== value) {
+				if (this.ctx.request.headers.get(key) !== value) {
 					if (value) {
-						this.reqCtx.request.headers.set(key, value);
+						this.ctx.request.headers.set(key, value);
 					} else {
-						this.reqCtx.request.headers.delete(key);
+						this.ctx.request.headers.delete(key);
 					}
 				}
 
@@ -231,11 +222,11 @@ export class RoutesMatcher {
 		}
 
 		// copy to the request object the headers that have been set by the middleware
-		applyHeaders(this.reqCtx.request.headers, resp.headers);
+		applyHeaders(this.ctx.request.headers, resp.headers);
 
 		applyHeaders(this.headers.normal, resp.headers);
 		this.headers.middlewareLocation = resp.headers.get('location');
-	}
+	};
 
 	/**
 	 * Runs the middleware function for a route if it exists.
@@ -243,22 +234,20 @@ export class RoutesMatcher {
 	 * @param path Path to the route's middleware function.
 	 * @returns Whether the middleware function was run successfully.
 	 */
-	private async runRouteMiddleware(path?: string): Promise<boolean> {
+	private runRouteMiddleware = async (path?: string): Promise<boolean> => {
 		// If there is no path, return true as it did not result in an error.
 		if (!path) return true;
 
-		const item = path && this.output[path];
-		if (!item || item.type !== 'middleware') {
+		const item = path && this.ctx.assets.get(path);
+		if (!item || item.kind !== 'middleware') {
 			// The middleware function could not be found. Set the status to 500 and bail out.
 			this.status = 500;
 			return false;
 		}
 
-		const resp = await runOrFetchBuildOutputItem(item, this.reqCtx, {
+		const resp = await item.fetch({
 			path: this.path,
 			searchParams: this.searchParams,
-			headers: this.headers,
-			status: this.status,
 		});
 		this.middlewareInvoked.push(path);
 
@@ -270,20 +259,20 @@ export class RoutesMatcher {
 
 		this.processMiddlewareResp(resp);
 		return true;
-	}
+	};
 
 	/**
 	 * Resets the response status and headers if the route should override them.
 	 *
 	 * @param route Build output config source route.
 	 */
-	private applyRouteOverrides(route: VercelSource): void {
+	private applyRouteOverrides = (route: SourceRoute): void => {
 		if (!route.override) return;
 
 		this.status = undefined;
 		this.headers.normal = new Headers();
 		this.headers.important = new Headers();
-	}
+	};
 
 	/**
 	 * Applies the route's headers for the response object.
@@ -292,11 +281,11 @@ export class RoutesMatcher {
 	 * @param srcMatch Matches from the PCRE matcher.
 	 * @param captureGroupKeys Named capture group keys from the PCRE matcher.
 	 */
-	private applyRouteHeaders(
-		route: VercelSource,
+	private applyRouteHeaders = (
+		route: SourceRoute,
 		srcMatch: RegExpMatchArray,
 		captureGroupKeys: string[],
-	): void {
+	): void => {
 		if (!route.headers) return;
 
 		applyHeaders(this.headers.normal, route.headers, {
@@ -310,18 +299,18 @@ export class RoutesMatcher {
 				captureGroupKeys,
 			});
 		}
-	}
+	};
 
 	/**
 	 * Applies the route's status code for the response object.
 	 *
 	 * @param route Build output config source route.
 	 */
-	private applyRouteStatus(route: VercelSource): void {
+	private applyRouteStatus = (route: SourceRoute): void => {
 		if (!route.status) return;
 
 		this.status = route.status;
-	}
+	};
 
 	/**
 	 * Applies the route's destination for the matching the path to the Vercel build output.
@@ -333,11 +322,11 @@ export class RoutesMatcher {
 	 * @param captureGroupKeys Named capture group keys from the PCRE matcher.
 	 * @returns The previous path for the route before applying the destination.
 	 */
-	private applyRouteDest(
-		route: VercelSource,
+	private applyRouteDest = (
+		route: SourceRoute,
 		srcMatch: RegExpMatchArray,
 		captureGroupKeys: string[],
-	): string {
+	): string => {
 		if (!route.dest) return this.path;
 
 		const prevPath = this.path;
@@ -369,7 +358,7 @@ export class RoutesMatcher {
 		// to a `.prefetch.rsc` file as Vercel handles those requests missing in later phases.
 		const isRsc = /\.rsc$/i.test(this.path);
 		const isPrefetchRsc = /\.prefetch\.rsc$/i.test(this.path);
-		const pathExistsInOutput = this.path in this.output;
+		const pathExistsInOutput = this.ctx.assets.has(this.path);
 		if (isRsc && !isPrefetchRsc && !pathExistsInOutput) {
 			this.path = this.path.replace(/\.rsc/i, '');
 		}
@@ -382,14 +371,14 @@ export class RoutesMatcher {
 		if (!isUrl(this.path)) this.path = destUrl.pathname;
 
 		return prevPath;
-	}
+	};
 
 	/**
 	 * Applies the route's redirects for locales and internationalization.
 	 *
 	 * @param route Build output config source route.
 	 */
-	private applyLocaleRedirects(route: VercelSource): void {
+	private applyLocaleRedirects = (route: SourceRoute): void => {
 		if (!route.locale?.redirect) return;
 
 		// Automatic locale detection is only supposed to occur at the root. However, the build output
@@ -410,7 +399,7 @@ export class RoutesMatcher {
 		const cookieLocales = parseAcceptLanguage(cookieValue ?? '');
 
 		const headerLocales = parseAcceptLanguage(
-			this.reqCtx.request.headers.get('accept-language') ?? '',
+			this.ctx.request.headers.get('accept-language') ?? '',
 		);
 
 		// Locales from the cookie take precedence over the header.
@@ -426,7 +415,7 @@ export class RoutesMatcher {
 				this.status = 307;
 			}
 		}
-	}
+	};
 
 	/**
 	 * Modifies the source route's `src` regex to be friendly with previously found locale's in the
@@ -441,7 +430,7 @@ export class RoutesMatcher {
 	 * @param phase Current phase of the routing process.
 	 * @returns The route with the locale friendly regex.
 	 */
-	private getLocaleFriendlyRoute(route: VercelSource, phase: VercelPhase): VercelSource {
+	private getLocaleFriendlyRoute = (route: SourceRoute, phase: Phase): SourceRoute => {
 		if (!this.locales || phase !== 'miss') {
 			return route;
 		}
@@ -454,7 +443,7 @@ export class RoutesMatcher {
 		}
 
 		return route;
-	}
+	};
 
 	/**
 	 * Checks a route to see if it matches the current request.
@@ -463,7 +452,7 @@ export class RoutesMatcher {
 	 * @param route Build output config source route.
 	 * @returns The status from checking the route.
 	 */
-	private async checkRoute(phase: VercelPhase, rawRoute: VercelSource): Promise<CheckRouteStatus> {
+	private checkRoute = async (phase: Phase, rawRoute: SourceRoute): Promise<CheckRouteStatus> => {
 		const localeFriendlyRoute = this.getLocaleFriendlyRoute(rawRoute, phase);
 		const { routeMatch, routeDest } =
 			this.checkRouteMatch(localeFriendlyRoute, {
@@ -474,7 +463,7 @@ export class RoutesMatcher {
 				checkIntercept: phase === 'rewrite',
 			}) ?? {};
 
-		const route: VercelSource = { ...localeFriendlyRoute, dest: routeDest };
+		const route: SourceRoute = { ...localeFriendlyRoute, dest: routeDest };
 
 		// If this route doesn't match, continue to the next one.
 		if (!routeMatch?.match) return 'skip';
@@ -526,7 +515,7 @@ export class RoutesMatcher {
 				// When in the `miss` phase, enter `filesystem` if the file is not in the build output. This
 				// avoids rewrites in `none` that do the opposite of those in `miss`, and would cause infinite
 				// loops (e.g. i18n). If it is in the build output, remove a potentially applied `404` status.
-				if (!(this.path in this.output) && !(this.path.replace(/\/$/, '') in this.output)) {
+				if (!this.ctx.assets.has(this.path) && !this.ctx.assets.has(this.path.replace(/\/$/, ''))) {
 					return this.checkPhase('filesystem');
 				}
 
@@ -552,7 +541,7 @@ export class RoutesMatcher {
 		}
 
 		return 'next';
-	}
+	};
 
 	/**
 	 * Checks a phase from the routing process to see if any route matches the current request.
@@ -560,7 +549,7 @@ export class RoutesMatcher {
 	 * @param phase Current phase for routing.
 	 * @returns The status from checking the phase.
 	 */
-	private async checkPhase(phase: VercelPhase): Promise<CheckPhaseStatus> {
+	private checkPhase = async (phase: Phase): Promise<CheckPhaseStatus> => {
 		if (this.checkPhaseCounter++ >= 50) {
 			// eslint-disable-next-line no-console
 			console.error(`Routing encountered an infinite loop while checking ${this.url.pathname}`);
@@ -599,20 +588,20 @@ export class RoutesMatcher {
 				const localeRegExp = new RegExp(`/${locale}(/.*)`);
 				const match = this.path.match(localeRegExp);
 				const pathWithoutLocale = match?.[1];
-				if (pathWithoutLocale && pathWithoutLocale in this.output) {
+				if (pathWithoutLocale && this.ctx.assets.has(pathWithoutLocale)) {
 					this.path = pathWithoutLocale;
 					break;
 				}
 			}
 		}
 
-		let pathExistsInOutput = this.path in this.output;
+		let pathExistsInOutput = this.ctx.assets.has(this.path);
 
 		// paths could incorrectly not be detected as existing in the output due to the `trailingSlash` setting
 		// in `next.config.mjs`, so let's check for that here and update the path in such case
 		if (!pathExistsInOutput && this.path.endsWith('/')) {
 			const newPath = this.path.replace(/\/$/, '');
-			pathExistsInOutput = newPath in this.output;
+			pathExistsInOutput = this.ctx.assets.has(newPath);
 			if (pathExistsInOutput) {
 				this.path = newPath;
 			}
@@ -624,7 +613,7 @@ export class RoutesMatcher {
 			this.status = should404 ? 404 : this.status;
 		}
 
-		let nextPhase: VercelHandleValue = 'miss';
+		let nextPhase: Phase = 'miss';
 		if (pathExistsInOutput || phase === 'miss' || phase === 'error') {
 			// If the route exists, enter the `hit` phase. For `miss` and `error` phases, enter the `hit`
 			// phase to update headers (e.g. `x-matched-path`).
@@ -634,7 +623,7 @@ export class RoutesMatcher {
 		}
 
 		return this.checkPhase(nextPhase);
-	}
+	};
 
 	/**
 	 * Runs the matcher for a phase.
@@ -642,9 +631,9 @@ export class RoutesMatcher {
 	 * @param phase The phase to start matching routes from.
 	 * @returns The status from checking for matches.
 	 */
-	public async run(
-		phase: Extract<VercelPhase, 'none' | 'error'> = 'none',
-	): Promise<CheckPhaseStatus> {
+	public run = async (
+		phase: Extract<Phase, 'none' | 'error'> = 'none',
+	): Promise<CheckPhaseStatus> => {
 		// Reset the counter for each run.
 		this.checkPhaseCounter = 0;
 		const result = await this.checkPhase(phase);
@@ -658,5 +647,5 @@ export class RoutesMatcher {
 		}
 
 		return result;
-	}
+	};
 }

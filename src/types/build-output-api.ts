@@ -6,7 +6,7 @@ import type { ExecutionContext } from './request-context';
 
 export type VercelConfig = {
 	version: 3;
-	routes?: VercelRoute[];
+	routes?: Route[];
 	images?: VercelImagesConfig;
 	wildcard?: VercelWildcardConfig;
 	overrides?: VercelOverrideConfig;
@@ -15,9 +15,27 @@ export type VercelConfig = {
 	crons?: VercelCronsConfig;
 };
 
-export type VercelRoute = VercelSource | VercelHandler;
+/**
+ * Routes
+ */
 
-export type VercelSource = {
+export type Phase =
+	| 'none' // represents source routes that are not under a handler.
+	| 'rewrite'
+	| 'filesystem' // check matches after the filesystem misses
+	| 'resource'
+	| 'miss' // check matches after every filesystem miss
+	| 'hit'
+	| 'error'; //  check matches after error (500, 404, etc.)
+
+export type HandlerRoute = {
+	handle: Exclude<Phase, 'none'>;
+	src?: string;
+	dest?: string;
+	status?: number;
+};
+
+export type SourceRoute = {
 	src: string;
 	dest?: string;
 	headers?: Record<string, string>;
@@ -34,6 +52,8 @@ export type VercelSource = {
 	middlewarePath?: string;
 	middlewareRawSrc?: string[];
 };
+
+export type Route = SourceRoute | HandlerRoute;
 
 export type VercelHasField =
 	| VercelHostHasField
@@ -69,21 +89,6 @@ export type VercelQueryHasField = {
 	type: 'query';
 	key: string;
 	value?: string;
-};
-
-export type VercelHandleValue =
-	| 'rewrite'
-	| 'filesystem' // check matches after the filesystem misses
-	| 'resource'
-	| 'miss' // check matches after every filesystem miss
-	| 'hit'
-	| 'error'; //  check matches after error (500, 404, etc.)
-
-export type VercelHandler = {
-	handle: VercelHandleValue;
-	src?: string;
-	dest?: string;
-	status?: number;
 };
 
 export type VercelImageFormat = 'image/avif' | 'image/webp';
@@ -133,44 +138,31 @@ export type VercelCronsConfig = VercelCron[];
  * Types for the processed Vercel build output (config, functions + static assets).
  */
 
-export type Override<T, K extends keyof T, V> = Omit<T, K> & { [key in K]: V };
+export type RoutesGroupedByPhase = Record<Phase, SourceRoute[]>;
 
-export type ProcessedVercelRoutes = {
-	none: VercelSource[];
-	filesystem: VercelSource[];
-	miss: VercelSource[];
-	rewrite: VercelSource[];
-	resource: VercelSource[];
-	hit: VercelSource[];
-	error: VercelSource[];
-};
-export type VercelPhase = keyof ProcessedVercelRoutes;
-
-export type ProcessedVercelConfig = Override<VercelConfig, 'routes', ProcessedVercelRoutes>;
-
-export type BuildOutputStaticAsset = { type: 'static' };
-export type BuildOutputStaticOverride = {
-	type: 'override';
-	path: string;
+type BuildOutputStaticAsset = {
+	type: 'static';
+	path?: string;
 	headers?: Record<string, string>;
 };
-export type BuildOutputStaticItem = BuildOutputStaticAsset | BuildOutputStaticOverride;
-
-export type BuildOutputFunction = {
+type BuildOutputFunction = {
 	type: 'function' | 'middleware';
 	entrypoint: string;
 };
-
-export type BuildOutputItem = BuildOutputFunction | BuildOutputStaticItem;
-export type ProcessedVercelBuildOutput = Map<string, BuildOutputItem>;
+export type BuildOutputItem = BuildOutputFunction | BuildOutputStaticAsset;
+export type BuildOutput = {
+	[key: string]: BuildOutputItem;
+};
 
 export type EdgeFunction = {
 	default: (request: Request, context: ExecutionContext) => Response | Promise<Response>;
 };
 
-export type AdjustedBuildOutputFunction = Override<BuildOutputFunction, 'entrypoint', string>;
-export type VercelBuildOutputItem = AdjustedBuildOutputFunction | BuildOutputStaticItem;
+/**
+ * Metadata
+ */
 
-export type VercelBuildOutput = {
-	[key: string]: VercelBuildOutputItem;
+export type ConfigMetadata = {
+	locales: Set<string>;
+	wildcardConfig: VercelWildcardConfig | undefined;
 };

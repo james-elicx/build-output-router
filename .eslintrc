@@ -15,5 +15,5 @@
 		],
 		"no-console": "error",
 	},
-	"ignorePatterns": ["dist", "scripts"],
+	"ignorePatterns": ["dist", "scripts", "fixtures/**/*.js", "fixtures/**/*.cjs"],
 }
