@@ -1,12 +1,13 @@
-import { describe, test, expect } from 'vitest';
-import type { MatchPCREResult } from '../../../templates/_worker.js/utils';
+import { describe, expect, test } from 'vitest';
+
 import {
 	applyHeaders,
 	applySearchParams,
 	createRouteRequest,
 	isUrl,
 	parseAcceptLanguage,
-} from '../../../templates/_worker.js/utils';
+} from './http';
+import type { MatchPCREResult } from './pcre';
 
 describe('applyHeaders', () => {
 	test('applies headers from normal object', () => {
@@ -77,16 +78,12 @@ describe('applySearchParams', () => {
 		expect([...source.searchParams.entries()].length).toEqual(1);
 		expect([...target.searchParams.entries()].length).toEqual(2);
 
-		expect(target.toString()).toEqual(
-			'http://localhost/page?other=value&foo=bar',
-		);
+		expect(target.toString()).toEqual('http://localhost/page?other=value&foo=bar');
 	});
 
 	test('allows multiple query params with the same key', () => {
 		const source = new URL('http://localhost/page?foo=bar');
-		const target = new URL(
-			'http://localhost/page?other=value&foo=baz&foo=test',
-		);
+		const target = new URL('http://localhost/page?other=value&foo=baz&foo=test');
 
 		expect([...source.searchParams.entries()].length).toEqual(1);
 		expect([...target.searchParams.entries()].length).toEqual(3);
@@ -96,9 +93,7 @@ describe('applySearchParams', () => {
 		expect([...source.searchParams.entries()].length).toEqual(1);
 		expect([...target.searchParams.entries()].length).toEqual(4);
 
-		expect(target.toString()).toEqual(
-			'http://localhost/page?other=value&foo=baz&foo=test&foo=bar',
-		);
+		expect(target.toString()).toEqual('http://localhost/page?other=value&foo=baz&foo=test&foo=bar');
 	});
 
 	test('multiple query params with the same key must be unique values', () => {
@@ -113,16 +108,12 @@ describe('applySearchParams', () => {
 		expect([...source.searchParams.entries()].length).toEqual(3);
 		expect([...target.searchParams.entries()].length).toEqual(3);
 
-		expect(target.toString()).toEqual(
-			'http://localhost/page?other=value&foo=baz&foo=bar',
-		);
+		expect(target.toString()).toEqual('http://localhost/page?other=value&foo=baz&foo=bar');
 	});
 
 	test('Next.js page params (nxtP) always override', () => {
 		const source = new URL('http://localhost/page?nxtPfoo=bar');
-		const target = new URL(
-			'http://localhost/page?other=value&foo=baz&foo=test',
-		);
+		const target = new URL('http://localhost/page?other=value&foo=baz&foo=test');
 
 		expect([...source.searchParams.entries()].length).toEqual(1);
 		expect([...target.searchParams.entries()].length).toEqual(3);
@@ -132,9 +123,7 @@ describe('applySearchParams', () => {
 		expect([...source.searchParams.entries()].length).toEqual(1);
 		expect([...target.searchParams.entries()].length).toEqual(3);
 
-		expect(target.toString()).toEqual(
-			'http://localhost/page?other=value&foo=bar&nxtPfoo=bar',
-		);
+		expect(target.toString()).toEqual('http://localhost/page?other=value&foo=bar&nxtPfoo=bar');
 	});
 });
 

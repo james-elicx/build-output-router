@@ -16,8 +16,7 @@ export function applyHeaders(
 	source: Record<string, string> | Headers,
 	pcreMatch?: MatchPCREResult,
 ): void {
-	const entries =
-		source instanceof Headers ? source.entries() : Object.entries(source);
+	const entries = source instanceof Headers ? source.entries() : Object.entries(source);
 	for (const [key, value] of entries) {
 		const lowerKey = key.toLowerCase();
 		const newValue = pcreMatch?.match
@@ -60,10 +59,7 @@ export function isUrl(url: string): boolean {
  * @param target Target that search params will be applied to.
  * @param source Source search params to apply to the target.
  */
-export function applySearchParams(
-	target: URLSearchParams,
-	source: URLSearchParams,
-) {
+export function applySearchParams(target: URLSearchParams, source: URLSearchParams) {
 	for (const [key, value] of source.entries()) {
 		const nxtParamMatch = /^nxtP(.+)$/.exec(key);
 		const nxtInterceptMatch = /^nxtI(.+)$/.exec(key);
@@ -72,10 +68,7 @@ export function applySearchParams(
 			target.set(nxtParamMatch[1], value);
 		} else if (nxtInterceptMatch?.[1]) {
 			target.set(nxtInterceptMatch[1], value.replace(/(\(\.+\))+/, ''));
-		} else if (
-			!target.has(key) ||
-			(!!value && !target.getAll(key).includes(value))
-		) {
+		} else if (!target.has(key) || (!!value && !target.getAll(key).includes(value))) {
 			target.append(key, value);
 		}
 	}
@@ -96,9 +89,7 @@ export function createRouteRequest(req: Request, path: string) {
 	const newUrl = new URL(path, req.url);
 	applySearchParams(newUrl.searchParams, new URL(req.url).searchParams);
 
-	newUrl.pathname = newUrl.pathname
-		.replace(/\/index.html$/, '/')
-		.replace(/\.html$/, '');
+	newUrl.pathname = newUrl.pathname.replace(/\/index.html$/, '/').replace(/\.html$/, '');
 
 	return new Request(newUrl, req);
 }
@@ -124,11 +115,11 @@ export function createMutableResponse(resp: Response) {
 export function parseAcceptLanguage(headerValue: string): string[] {
 	return headerValue
 		.split(',')
-		.map(val => {
+		.map((val) => {
 			const [lang, qual] = val.split(';') as [string, string | undefined];
 			const quality = parseFloat((qual ?? 'q=1').replace(/q *= */gi, ''));
 
-			return [lang.trim(), isNaN(quality) ? 1 : quality] as [string, number];
+			return [lang.trim(), Number.isNaN(quality) ? 1 : quality] as [string, number];
 		})
 		.sort((a, b) => b[1] - a[1])
 		.map(([locale]) => (locale === '*' || locale === '' ? [] : locale))

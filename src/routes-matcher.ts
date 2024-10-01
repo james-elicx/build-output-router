@@ -1,22 +1,29 @@
 import { parse } from 'cookie';
-import type { MatchPCREResult, MatchedSetHeaders } from './utils';
-import { isLocaleTrailingSlashRegex, parseAcceptLanguage } from './utils';
+
+import type {
+	BuildMetadata,
+	ProcessedVercelRoutes,
+	RequestContext,
+	VercelBuildOutput,
+	VercelHandleValue,
+	VercelPhase,
+	VercelSource,
+	VercelWildCard,
+	VercelWildcardConfig,
+} from './types';
+import type { MatchedSetHeaders, MatchPCREResult } from './utils';
 import {
 	applyHeaders,
 	applyPCREMatches,
 	applySearchParams,
-	checkhasField,
+	checkHasField,
 	getNextPhase,
+	isLocaleTrailingSlashRegex,
 	isUrl,
 	matchPCRE,
+	parseAcceptLanguage,
 	runOrFetchBuildOutputItem,
 } from './utils';
-
-export type RequestContext = {
-	request: Request;
-	assetsFetcher: Fetcher;
-	ctx: ExecutionContext;
-};
 
 export type CheckRouteStatus = 'skip' | 'next' | 'done' | 'error';
 export type CheckPhaseStatus = Extract<CheckRouteStatus, 'error' | 'done'>;
@@ -27,26 +34,34 @@ export type CheckPhaseStatus = Extract<CheckRouteStatus, 'error' | 'done'>;
 export class RoutesMatcher {
 	/** URL from the request to match */
 	private url: URL;
+
 	/** Cookies from the request to match */
 	private cookies: Record<string, string>;
+
 	/** Wildcard match from the Vercel build output config */
 	private wildcardMatch: VercelWildCard | undefined;
 
 	/** Path for the matched route */
 	public path: string;
+
 	/** Status for the response object */
 	public status: number | undefined;
+
 	/** Headers for the response object */
 	public headers: MatchedSetHeaders;
+
 	/** Search params for the response object */
 	public searchParams: URLSearchParams;
+
 	/** Custom response body from middleware */
 	public body: BodyInit | undefined | null;
 
 	/** Counter for how many times the function to check a phase has been called */
 	public checkPhaseCounter;
+
 	/** Tracker for the middleware that have been invoked in a phase */
 	private middlewareInvoked: string[];
+
 	/** Locales found during routing */
 	public locales: Set<string>;
 
@@ -69,7 +84,7 @@ export class RoutesMatcher {
 		private output: VercelBuildOutput,
 		/** Request Context object for the request to match */
 		private reqCtx: RequestContext,
-		buildMetadata: NextOnPagesBuildMetadata,
+		buildMetadata: BuildMetadata,
 		wildcardConfig?: VercelWildcardConfig,
 	) {
 		this.url = new URL(reqCtx.request.url);
@@ -83,9 +98,7 @@ export class RoutesMatcher {
 		this.checkPhaseCounter = 0;
 		this.middlewareInvoked = [];
 
-		this.wildcardMatch = wildcardConfig?.find(
-			w => w.domain === this.url.hostname,
-		);
+		this.wildcardMatch = wildcardConfig?.find((w) => w.domain === this.url.hostname);
 
 		this.locales = new Set(buildMetadata.collectedLocales);
 	}
@@ -99,10 +112,7 @@ export class RoutesMatcher {
 	 */
 	private checkRouteMatch(
 		route: VercelSource,
-		{
-			checkStatus,
-			checkIntercept,
-		}: { checkStatus: boolean; checkIntercept: boolean },
+		{ checkStatus, checkIntercept }: { checkStatus: boolean; checkIntercept: boolean },
 	): { routeMatch: MatchPCREResult; routeDest?: string } | undefined {
 		const srcMatch = matchPCRE(route.src, this.path, route.caseSensitive);
 		if (!srcMatch.match) return;
@@ -110,9 +120,7 @@ export class RoutesMatcher {
 		// One of the HTTP `methods` conditions must be met - skip if not met.
 		if (
 			route.methods &&
-			!route.methods
-				.map(m => m.toUpperCase())
-				.includes(this.reqCtx.request.method.toUpperCase())
+			!route.methods.map((m) => m.toUpperCase()).includes(this.reqCtx.request.method.toUpperCase())
 		) {
 			return;
 		}
@@ -126,8 +134,8 @@ export class RoutesMatcher {
 
 		// All `has` conditions must be met - skip if one is not met.
 		if (
-			route.has?.find(has => {
-				const result = checkhasField(has, hasFieldProps);
+			route.has?.find((has) => {
+				const result = checkHasField(has, hasFieldProps);
 				if (result.newRouteDest) {
 					// If the `has` condition had a named capture to update the destination, update it.
 					hasFieldProps.routeDest = result.newRouteDest;
@@ -139,7 +147,7 @@ export class RoutesMatcher {
 		}
 
 		// All `missing` conditions must not be met - skip if one is met.
-		if (route.missing?.find(has => checkhasField(has, hasFieldProps).valid)) {
+		if (route.missing?.find((has) => checkHasField(has, hasFieldProps).valid)) {
 			return;
 		}
 
@@ -174,9 +182,7 @@ export class RoutesMatcher {
 		const overrideKey = 'x-middleware-override-headers';
 		const overrideHeader = resp.headers.get(overrideKey);
 		if (overrideHeader) {
-			const overridenHeaderKeys = new Set(
-				overrideHeader.split(',').map(h => h.trim()),
-			);
+			const overridenHeaderKeys = new Set(overrideHeader.split(',').map((h) => h.trim()));
 
 			for (const key of overridenHeaderKeys.keys()) {
 				const valueKey = `x-middleware-request-${key}`;
@@ -220,11 +226,7 @@ export class RoutesMatcher {
 			// to continue and did not rewrite/redirect the URL.
 			this.body = resp.body;
 			this.status = resp.status;
-		} else if (
-			resp.headers.has('location') &&
-			resp.status >= 300 &&
-			resp.status < 400
-		) {
+		} else if (resp.headers.has('location') && resp.status >= 300 && resp.status < 400) {
 			this.status = resp.status;
 		}
 
@@ -343,10 +345,7 @@ export class RoutesMatcher {
 
 		// Apply wildcard matches before PCRE matches
 		if (this.wildcardMatch && /\$wildcard/.test(processedDest)) {
-			processedDest = processedDest.replace(
-				/\$wildcard/g,
-				this.wildcardMatch.value,
-			);
+			processedDest = processedDest.replace(/\$wildcard/g, this.wildcardMatch.value);
 		}
 
 		this.path = applyPCREMatches(processedDest, srcMatch, captureGroupKeys);
@@ -417,9 +416,7 @@ export class RoutesMatcher {
 		// Locales from the cookie take precedence over the header.
 		const locales = [...cookieLocales, ...headerLocales];
 
-		const redirectLocales = locales
-			.map(locale => redirects[locale])
-			.filter(Boolean) as string[];
+		const redirectLocales = locales.map((locale) => redirects[locale]).filter(Boolean) as string[];
 
 		const redirectValue = redirectLocales[0];
 		if (redirectValue) {
@@ -428,7 +425,6 @@ export class RoutesMatcher {
 				this.headers.normal.set('location', redirectValue);
 				this.status = 307;
 			}
-			return;
 		}
 	}
 
@@ -445,10 +441,7 @@ export class RoutesMatcher {
 	 * @param phase Current phase of the routing process.
 	 * @returns The route with the locale friendly regex.
 	 */
-	private getLocaleFriendlyRoute(
-		route: VercelSource,
-		phase: VercelPhase,
-	): VercelSource {
+	private getLocaleFriendlyRoute(route: VercelSource, phase: VercelPhase): VercelSource {
 		if (!this.locales || phase !== 'miss') {
 			return route;
 		}
@@ -470,10 +463,7 @@ export class RoutesMatcher {
 	 * @param route Build output config source route.
 	 * @returns The status from checking the route.
 	 */
-	private async checkRoute(
-		phase: VercelPhase,
-		rawRoute: VercelSource,
-	): Promise<CheckRouteStatus> {
+	private async checkRoute(phase: VercelPhase, rawRoute: VercelSource): Promise<CheckRouteStatus> {
 		const localeFriendlyRoute = this.getLocaleFriendlyRoute(rawRoute, phase);
 		const { routeMatch, routeDest } =
 			this.checkRouteMatch(localeFriendlyRoute, {
@@ -490,10 +480,7 @@ export class RoutesMatcher {
 		if (!routeMatch?.match) return 'skip';
 
 		// If this route is a middleware route, check if it has already been invoked.
-		if (
-			route.middlewarePath &&
-			this.middlewareInvoked.includes(route.middlewarePath)
-		) {
+		if (route.middlewarePath && this.middlewareInvoked.includes(route.middlewarePath)) {
 			return 'skip';
 		}
 
@@ -539,10 +526,7 @@ export class RoutesMatcher {
 				// When in the `miss` phase, enter `filesystem` if the file is not in the build output. This
 				// avoids rewrites in `none` that do the opposite of those in `miss`, and would cause infinite
 				// loops (e.g. i18n). If it is in the build output, remove a potentially applied `404` status.
-				if (
-					!(this.path in this.output) &&
-					!(this.path.replace(/\/$/, '') in this.output)
-				) {
+				if (!(this.path in this.output) && !(this.path.replace(/\/$/, '') in this.output)) {
 					return this.checkPhase('filesystem');
 				}
 
@@ -562,8 +546,7 @@ export class RoutesMatcher {
 		}
 
 		// If the route is a redirect then we're actually done
-		const isRedirect =
-			route.status && route.status >= 300 && route.status <= 399;
+		const isRedirect = route.status && route.status >= 300 && route.status <= 399;
 		if (isRedirect) {
 			return 'done';
 		}
@@ -580,9 +563,7 @@ export class RoutesMatcher {
 	private async checkPhase(phase: VercelPhase): Promise<CheckPhaseStatus> {
 		if (this.checkPhaseCounter++ >= 50) {
 			// eslint-disable-next-line no-console
-			console.error(
-				`Routing encountered an infinite loop while checking ${this.url.pathname}`,
-			);
+			console.error(`Routing encountered an infinite loop while checking ${this.url.pathname}`);
 			this.status = 500;
 			return 'error';
 		}
@@ -605,12 +586,7 @@ export class RoutesMatcher {
 		}
 
 		// In the `hit` phase or for external urls/redirects/middleware responses, return the match.
-		if (
-			phase === 'hit' ||
-			isUrl(this.path) ||
-			this.headers.normal.has('location') ||
-			!!this.body
-		) {
+		if (phase === 'hit' || isUrl(this.path) || this.headers.normal.has('location') || !!this.body) {
 			return 'done';
 		}
 

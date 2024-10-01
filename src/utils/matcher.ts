@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-use-before-define */
+import type { VercelHasField } from '../types';
 import { applyPCREMatches, matchPCRE } from './pcre';
 
 type HasFieldRequestProperties = {
@@ -15,21 +17,18 @@ type HasFieldRequestProperties = {
  * @param requestProperties The request properties to check against.
  * @returns Whether the request matches the `has` record conditions, and the new destination if it changed.
  */
-export function checkhasField(
+export function checkHasField(
 	has: VercelHasField,
 	{ url, cookies, headers, routeDest }: HasFieldRequestProperties,
 ): { valid: boolean; newRouteDest?: string } {
+	// eslint-disable-next-line default-case
 	switch (has.type) {
 		case 'host': {
 			return { valid: url.hostname === has.value };
 		}
 		case 'header': {
 			if (has.value !== undefined) {
-				return getHasFieldPCREMatchResult(
-					has.value,
-					headers.get(has.key),
-					routeDest,
-				);
+				return getHasFieldPCREMatchResult(has.value, headers.get(has.key), routeDest);
 			}
 
 			return { valid: headers.has(has.key) };
@@ -45,11 +44,7 @@ export function checkhasField(
 		}
 		case 'query': {
 			if (has.value !== undefined) {
-				return getHasFieldPCREMatchResult(
-					has.value,
-					url.searchParams.get(has.key),
-					routeDest,
-				);
+				return getHasFieldPCREMatchResult(has.value, url.searchParams.get(has.key), routeDest);
 			}
 
 			return { valid: url.searchParams.has(has.key) };

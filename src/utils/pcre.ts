@@ -2,6 +2,7 @@
 // capture group keys, which is useful for matching and replacing parameters.
 // This is the same library used by Vercel in the build output, and is used here to ensure
 // consistency and proper support.
+// eslint-disable-next-line import/extensions
 import createPCRE from 'pcre-to-regexp/dist/index.js';
 
 export type MatchPCREResult = {

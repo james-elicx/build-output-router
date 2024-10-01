@@ -1,10 +1,11 @@
-import type { RequestContext } from '../../../src/utils/requestContext';
-import {
-	applyHeaders,
-	createRouteRequest,
-	createMutableResponse,
-	applySearchParams,
-} from './http';
+import type {
+	EdgeFunction,
+	RequestContext,
+	VercelBuildOutputItem,
+	VercelHandleValue,
+	VercelPhase,
+} from '../types';
+import { applyHeaders, applySearchParams, createMutableResponse, createRouteRequest } from './http';
 
 export type MatchedSetHeaders = {
 	/**
@@ -79,7 +80,7 @@ export async function runOrFetchBuildOutputItem(
 	{ request, assetsFetcher, ctx }: RequestContext,
 	{ path, searchParams }: Omit<MatchedSet, 'body'>,
 ) {
-	let resp: Response | undefined = undefined;
+	let resp: Response | undefined;
 
 	// Apply the search params from matching the route to the request URL.
 	const url = new URL(request.url);
@@ -95,10 +96,7 @@ export async function runOrFetchBuildOutputItem(
 					resp = await edgeFunction.default(req, ctx);
 				} catch (e) {
 					const err = e as Error;
-					if (
-						err.name === 'TypeError' &&
-						err.message.endsWith('default is not a function')
-					) {
+					if (err.name === 'TypeError' && err.message.endsWith('default is not a function')) {
 						throw new Error(
 							`An error occurred while evaluating the target edge function (${item.entrypoint})`,
 						);
@@ -153,5 +151,5 @@ export function isLocaleTrailingSlashRegex(src: string, locales: Set<string>) {
 	}
 
 	const foundLocales = src.slice(prefix.length, -suffix.length).split('|');
-	return foundLocales.every(locale => locales.has(locale));
+	return foundLocales.every((locale) => locales.has(locale));
 }

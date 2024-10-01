@@ -1,8 +1,7 @@
-import { describe, test, expect } from 'vitest';
-import {
-	matchPCRE,
-	applyPCREMatches,
-} from '../../../templates/_worker.js/utils';
+import { describe, expect, test } from 'vitest';
+
+import type { VercelSource } from '../types';
+import { applyPCREMatches, matchPCRE } from './pcre';
 
 type TestCase = {
 	name: string;
@@ -46,7 +45,7 @@ describe('matchPCRE', () => {
 		},
 	];
 
-	testCases.forEach(testCase => {
+	testCases.forEach((testCase) => {
 		test(testCase.name, () => {
 			const result = matchPCRE(
 				testCase.route.src,
@@ -151,7 +150,7 @@ describe('applyPCREMatches', () => {
 		},
 	];
 
-	testCases.forEach(testCase => {
+	testCases.forEach((testCase) => {
 		test(testCase.name, () => {
 			const { match, captureGroupKeys } = matchPCRE(
 				testCase.route.src,

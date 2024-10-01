@@ -1,3 +1,10 @@
+import type {
+	Fetcher,
+	VercelBuildOutput,
+	VercelImageFormatWithoutPrefix,
+	VercelImageRemotePattern,
+	VercelImagesConfig,
+} from '../types';
 import { applyHeaders, createMutableResponse } from './http';
 
 /**
@@ -29,7 +36,7 @@ export function isRemotePatternMatch(
 type ResizingProperties = {
 	isRelative: boolean;
 	imageUrl: URL;
-	options: RequestInitCfPropertiesImage;
+	options: { width: number; quality: number; format: string | undefined };
 };
 
 /**
@@ -74,15 +81,15 @@ export function getResizingProperties(
 		!isRelative &&
 		// External image URL must be allowed by domains or remote patterns.
 		!config?.domains?.includes(url.hostname) &&
-		!config?.remotePatterns?.find(pattern => isRemotePatternMatch(url, pattern))
+		!config?.remotePatterns?.find((pattern) => isRemotePatternMatch(url, pattern))
 	) {
 		return undefined;
 	}
 
 	const acceptHeader = request.headers.get('Accept') ?? '';
-	const format = config?.formats
-		?.find(format => acceptHeader.includes(format))
-		?.replace('image/', '') as VercelImageFormatWithoutPrefix | undefined;
+	const format = config?.formats?.find((f) => acceptHeader.includes(f))?.replace('image/', '') as
+		| VercelImageFormatWithoutPrefix
+		| undefined;
 
 	return {
 		isRelative,
@@ -104,11 +111,7 @@ export function getResizingProperties(
  * @param config Images configuration from the Vercel build output.
  * @returns Formatted response.
  */
-export function formatResp(
-	resp: Response,
-	imageUrl: URL,
-	config?: VercelImagesConfig,
-): Response {
+export function formatResp(resp: Response, imageUrl: URL, config?: VercelImagesConfig): Response {
 	const newHeaders = new Headers();
 
 	if (config?.contentSecurityPolicy) {
@@ -127,10 +130,7 @@ export function formatResp(
 	if (!resp.headers.has('Cache-Control')) {
 		// Fall back to the minimumCacheTTL value if there is no Cache-Control header.
 		// https://vercel.com/docs/concepts/image-optimization#caching
-		newHeaders.set(
-			'Cache-Control',
-			`public, max-age=${config?.minimumCacheTTL ?? 60}`,
-		);
+		newHeaders.set('Cache-Control', `public, max-age=${config?.minimumCacheTTL ?? 60}`);
 	}
 
 	const mutableResponse = createMutableResponse(resp);

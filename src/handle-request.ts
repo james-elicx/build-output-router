@@ -1,12 +1,12 @@
-import type { MatchedSet } from './utils';
-import {
-	applyHeaders,
-	applySearchParams,
-	isUrl,
-	runOrFetchBuildOutputItem,
-} from './utils';
 import { RoutesMatcher } from './routes-matcher';
-import type { RequestContext } from '../../src/utils/requestContext';
+import type {
+	BuildMetadata,
+	ProcessedVercelConfig,
+	RequestContext,
+	VercelBuildOutput,
+} from './types';
+import type { MatchedSet } from './utils';
+import { applyHeaders, applySearchParams, isUrl, runOrFetchBuildOutputItem } from './utils';
 
 /**
  * Handles a request by processing and matching it against all the routing phases.
@@ -21,17 +21,13 @@ export async function handleRequest(
 	reqCtx: RequestContext,
 	config: ProcessedVercelConfig,
 	output: VercelBuildOutput,
-	buildMetadata: NextOnPagesBuildMetadata,
+	buildMetadata: BuildMetadata,
 ): Promise<Response> {
-	const matcher = new RoutesMatcher(
-		config.routes,
-		output,
-		reqCtx,
-		buildMetadata,
-		config.wildcard,
-	);
+	const matcher = new RoutesMatcher(config.routes, output, reqCtx, buildMetadata, config.wildcard);
+	// eslint-disable-next-line @typescript-eslint/no-use-before-define
 	const match = await findMatch(matcher);
 
+	// eslint-disable-next-line @typescript-eslint/no-use-before-define
 	return generateResponse(reqCtx, match, output);
 }
 
@@ -50,10 +46,7 @@ async function findMatch(
 ): Promise<MatchedSet> {
 	const result = await matcher.run(phase);
 
-	if (
-		result === 'error' ||
-		(!skipErrorMatch && matcher.status && matcher.status >= 400)
-	) {
+	if (result === 'error' || (!skipErrorMatch && matcher.status && matcher.status >= 400)) {
 		return findMatch(matcher, 'error', true);
 	}
 
@@ -85,9 +78,7 @@ async function generateResponse(
 		// Middleware that returns a redirect will specify the destination, including any search params
 		// that they want to include. Therefore, we should not be appending search params to those.
 		if (locationHeader !== headers.middlewareLocation) {
-			const paramsStr = [...searchParams.keys()].length
-				? `?${searchParams.toString()}`
-				: '';
+			const paramsStr = [...searchParams.keys()].length ? `?${searchParams.toString()}` : '';
 			headers.normal.set('location', `${locationHeader ?? '/'}${paramsStr}`);
 		}
 

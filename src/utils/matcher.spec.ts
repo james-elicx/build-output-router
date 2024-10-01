@@ -1,6 +1,8 @@
-import { describe, test, expect } from 'vitest';
 import { parse } from 'cookie';
-import { checkhasField } from '../../../templates/_worker.js/utils';
+import { describe, expect, test } from 'vitest';
+
+import type { VercelHasField } from '../types';
+import { checkHasField } from './matcher';
 
 type HasFieldTestCase = {
 	name: string;
@@ -23,7 +25,7 @@ const req = new Request(
 const url = new URL(req.url);
 const cookies = parse(req.headers.get('cookie') ?? '');
 
-describe('checkhasField', () => {
+describe('checkHasField', () => {
 	const testCases: HasFieldTestCase[] = [
 		{
 			name: 'host: valid host returns true',
@@ -128,9 +130,9 @@ describe('checkhasField', () => {
 		},
 	];
 
-	testCases.forEach(testCase => {
+	testCases.forEach((testCase) => {
 		test(testCase.name, () => {
-			const result = checkhasField(testCase.has, {
+			const result = checkHasField(testCase.has, {
 				url,
 				cookies,
 				headers: req.headers,

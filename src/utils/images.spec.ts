@@ -1,9 +1,7 @@
 import { describe, expect, test } from 'vitest';
-import {
-	formatResp,
-	getResizingProperties,
-	isRemotePatternMatch,
-} from '../../../templates/_worker.js/utils';
+
+import type { VercelImageRemotePattern, VercelImagesConfig } from '../types';
+import { formatResp, getResizingProperties, isRemotePatternMatch } from './images';
 
 describe('isRemotePatternMatch', () => {
 	test('hostname matches correctly', () => {
@@ -132,10 +130,9 @@ describe('getResizingProperties', () => {
 			});
 		});
 
-		['/', '%2f', '%2F'].forEach(char => {
+		['/', '%2f', '%2F'].forEach((char) => {
 			test(`image with valid request options succeeds (using '${char}'s)`, () => {
-				const baseValidUrl = `${baseUrl}${char}images${char}1.jpg`;
-				const url = new URL(`${baseValidUrl}&w=640`);
+				const url = new URL(`${baseUrl}${char}images${char}1.jpg&w=640`);
 				const req = new Request(url);
 
 				const result = getResizingProperties(req, baseConfig);
@@ -185,11 +182,9 @@ describe('getResizingProperties', () => {
 	describe('protocol relative (potentially another origin) image', () => {
 		const protocolRelativePrefixes = ['%2F%2F', '//', '%2f%2f', '%2f/', '/%2f'];
 
-		protocolRelativePrefixes.forEach(prefix => {
+		protocolRelativePrefixes.forEach((prefix) => {
 			test(`image with valid request options succeeds (with ${prefix} prefix)`, () => {
-				const url = new URL(
-					`${baseUrl}${prefix}via.placeholder.com%2Fimage.jpg&w=640`,
-				);
+				const url = new URL(`${baseUrl}${prefix}via.placeholder.com%2Fimage.jpg&w=640`);
 				const req = new Request(url);
 				const result = getResizingProperties(req, baseConfig);
 				expect(result).toEqual({
@@ -200,7 +195,7 @@ describe('getResizingProperties', () => {
 			});
 		});
 
-		protocolRelativePrefixes.forEach(prefix => {
+		protocolRelativePrefixes.forEach((prefix) => {
 			test(`image with disallowed domain fails (with "${prefix}" prefix)`, () => {
 				const url = new URL(`${baseUrl}${prefix}invalid.com%2Fimage.jpg&w=640`);
 				const req = new Request(url);
@@ -211,18 +206,14 @@ describe('getResizingProperties', () => {
 
 	describe('external image', () => {
 		test('external image fails with disallowed domain', () => {
-			const url = new URL(
-				`${baseUrl}https%3A%2F%2Finvalid.com%2Fimage.jpg&w=640`,
-			);
+			const url = new URL(`${baseUrl}https%3A%2F%2Finvalid.com%2Fimage.jpg&w=640`);
 			const req = new Request(url);
 
 			expect(getResizingProperties(req, baseConfig)).toEqual(undefined);
 		});
 
 		test('external image succeeds with allowed domain', () => {
-			const url = new URL(
-				`${baseUrl}https%3A%2F%2Fexample.com%2Fimage.jpg&w=640`,
-			);
+			const url = new URL(`${baseUrl}https%3A%2F%2Fexample.com%2Fimage.jpg&w=640`);
 			const req = new Request(url);
 
 			const result = getResizingProperties(req, baseConfig);
@@ -234,9 +225,7 @@ describe('getResizingProperties', () => {
 		});
 
 		test('external image suceeds with allowed remote pattern', () => {
-			const url = new URL(
-				`${baseUrl}https%3A%2F%2Fvia.placeholder.com%2Fimage.jpg&w=640`,
-			);
+			const url = new URL(`${baseUrl}https%3A%2F%2Fvia.placeholder.com%2Fimage.jpg&w=640`);
 			const req = new Request(url);
 
 			const result = getResizingProperties(req, baseConfig);
@@ -283,9 +272,7 @@ describe('formatResp', () => {
 		const imageUrl = new URL('https://localhost/images/1.jpg');
 
 		const newResp = formatResp(new Response(), imageUrl, config);
-		expect(newResp.headers.get('Content-Security-Policy')).toEqual(
-			'default-src',
-		);
+		expect(newResp.headers.get('Content-Security-Policy')).toEqual('default-src');
 	});
 
 	test('applies content disposition from the config', () => {
@@ -293,9 +280,7 @@ describe('formatResp', () => {
 		const imageUrl = new URL('https://localhost/images/1.jpg');
 
 		const newResp = formatResp(new Response(), imageUrl, config);
-		expect(newResp.headers.get('Content-Disposition')).toEqual(
-			'inline; filename="1.jpg"',
-		);
+		expect(newResp.headers.get('Content-Disposition')).toEqual('inline; filename="1.jpg"');
 	});
 
 	test('uses cache ttl from config when no cache header is present', () => {
