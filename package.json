@@ -11,10 +11,32 @@
 			"require": "./dist/index.cjs",
 			"types": "./dist/index.d.ts"
 		},
-		"./utils": {
-			"import": "./dist/utils/index.js",
-			"require": "./dist/utils/index.cjs",
-			"types": "./dist/utils/index.d.ts"
+		"./types/build-output": {
+			"types": "./dist/types/build-output/index.d.ts"
+		},
+		"./types/images": {
+			"types": "./dist/types/images/index.d.ts"
+		},
+		"./types/request-context": {
+			"types": "./dist/types/request-context/index.d.ts"
+		},
+		"./types/vercel-config": {
+			"types": "./dist/types/vercel-config/index.d.ts"
+		},
+		"./utils/http": {
+			"import": "./dist/utils/http/index.js",
+			"require": "./dist/utils/http/index.cjs",
+			"types": "./dist/utils/http/index.d.ts"
+		},
+		"./utils/images": {
+			"import": "./dist/utils/images/index.js",
+			"require": "./dist/utils/images/index.cjs",
+			"types": "./dist/utils/images/index.d.ts"
+		},
+		"./utils/routing": {
+			"import": "./dist/utils/routing/index.js",
+			"require": "./dist/utils/routing/index.cjs",
+			"types": "./dist/utils/routing/index.d.ts"
 		}
 	},
 	"publishConfig": {
