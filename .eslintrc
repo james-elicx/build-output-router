@@ -1,0 +1,19 @@
+{
+	"parserOptions": {
+		"project": "./tsconfig.json",
+	},
+	"extends": ["ixn"],
+	"rules": {
+		"prettier/prettier": "off",
+
+		"no-await-in-loop": "off",
+		"consistent-return": "off",
+
+		"import/no-extraneous-dependencies": [
+			"error",
+			{ "devDependencies": ["**/*.spec.ts", "vite.config.ts"] },
+		],
+		"no-console": "error",
+	},
+	"ignorePatterns": ["dist", "scripts"],
+}

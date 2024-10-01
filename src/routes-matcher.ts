@@ -11,7 +11,12 @@ import {
 	matchPCRE,
 	runOrFetchBuildOutputItem,
 } from './utils';
-import type { RequestContext } from '../../src/utils/requestContext';
+
+export type RequestContext = {
+	request: Request;
+	assetsFetcher: Fetcher;
+	ctx: ExecutionContext;
+};
 
 export type CheckRouteStatus = 'skip' | 'next' | 'done' | 'error';
 export type CheckPhaseStatus = Extract<CheckRouteStatus, 'error' | 'done'>;
