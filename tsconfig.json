@@ -13,5 +13,6 @@
 		"declarationMap": true,
 		"exactOptionalPropertyTypes": false
 	},
-	"include": ["**/*.ts"]
+	"include": ["**/*.ts"],
+	"exclude": ["dist"]
 }
