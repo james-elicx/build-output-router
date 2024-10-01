@@ -1,5 +1,3 @@
-import type { ExecutionContext } from './request-context';
-
 export type Phase =
 	| 'none' // represents source routes that are not under a handler
 	| 'rewrite'
@@ -21,7 +19,7 @@ type SourceRouteLocale = {
 	cookie?: string;
 };
 
-type SourceRouteHasField =
+export type SourceRouteHasField =
 	| { type: 'host'; value: string }
 	| { type: 'header'; key: string; value?: string }
 	| { type: 'cookie'; key: string; value?: string }
@@ -54,7 +52,3 @@ export type BuildOutputItem =
 	| { type: 'static'; path?: string; headers?: Record<string, string> };
 
 export type BuildOutput = Record<string, BuildOutputItem>;
-
-export type EdgeFunction = {
-	default: (request: Request, context: ExecutionContext) => Response | Promise<Response>;
-};
