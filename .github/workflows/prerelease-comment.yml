@@ -50,6 +50,6 @@ jobs:
             You can install this latest build in your project with:
 
             ```sh
-              npm i https://pmm-prereleases.ixion-labs.workers.dev/${{ env.WORKFLOW_RUN_ID }}/${{ env.WORKFLOW_RUN_PR }}
+              npm i https://prerelease-registry.ixion-labs.workers.dev/james-elicx/build-output-router/runs/${{ env.WORKFLOW_RUN_ID }}/npm-package-build-output-router-${{ env.WORKFLOW_RUN_PR }}
             ```
             </details>
