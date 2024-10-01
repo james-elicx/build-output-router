@@ -1,25 +1,16 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import {
-	applyHeaders,
-	applySearchParams,
-	collectLocalesFromRoutes,
-	createRouteRequest,
-} from 'src/utils';
 // eslint-disable-next-line import/no-extraneous-dependencies
 import { expect, suite, test, vi } from 'vitest';
 
+import type { BuildOutputItem, EdgeFunction, ExecutionContext } from '@/types/build-output';
+import type { Assets, Fetcher } from '@/types/request-context';
+import type { VercelConfig } from '@/types/vercel-config';
+import { applyHeaders, applySearchParams, createRouteRequest } from '@/utils/http';
+import { collectLocalesFromRoutes, groupRoutesByPhase } from '@/utils/routing';
+
 import { Router } from '../src';
-import type {
-	Assets,
-	BuildOutputItem,
-	EdgeFunction,
-	ExecutionContext,
-	Fetcher,
-	VercelConfig,
-} from '../src/types';
-import { groupRoutesByPhase } from '../src/utils';
 
 type TestCase = {
 	name: string;

@@ -1,28 +1,39 @@
 import { parse } from 'cookie';
 
-import type {
-	Phase,
-	RequestContext,
-	RoutesGroupedByPhase,
-	SourceRoute,
-	VercelWildCard,
-} from './types';
-import type { MatchPCREResult, RoutingMatch } from './utils';
-import {
-	applyHeaders,
-	applyPCREMatches,
-	applySearchParams,
-	checkHasField,
-	getNextPhase,
-	isLocaleTrailingSlashRegex,
-	isUrl,
-	matchPCRE,
-	parseAcceptLanguage,
-} from './utils';
+import type { Phase, RoutesGroupedByPhase, SourceRoute } from '@/types/build-output';
+import type { RequestContext } from '@/types/request-context';
+import type { WildCard } from '@/types/vercel-config';
+import { applyHeaders, applySearchParams, isUrl, parseAcceptLanguage } from '@/utils/http';
+import type { MatchPCREResult } from '@/utils/pcre';
+import { applyPCREMatches, matchPCRE } from '@/utils/pcre';
+import { checkHasField, getNextPhase, isLocaleTrailingSlashRegex } from '@/utils/routing';
 
 export type ConfigMetadata = {
 	locales: Set<string>;
-	wildcardConfig: VercelWildCard[] | undefined;
+	wildcardConfig: WildCard[] | undefined;
+};
+
+export type RoutingMatch = {
+	path: string;
+	status: number | undefined;
+	headers: {
+		/**
+		 * The headers present on a source route.
+		 * Gets applied to the final response before the response headers from running a function.
+		 */
+		normal: Headers;
+		/**
+		 * The *important* headers - the ones present on a source route that specifies `important: true`.
+		 * Gets applied to the final response after the response headers from running a function.
+		 */
+		important: Headers;
+		/**
+		 * Tracks if a location header is found, and what the value is, after running a middleware function.
+		 */
+		middlewareLocation?: string | null;
+	};
+	searchParams: URLSearchParams;
+	body: BodyInit | undefined | null;
 };
 
 export type CheckRouteStatus = 'skip' | 'next' | 'done' | 'error';
@@ -39,7 +50,7 @@ export class RoutesMatcher {
 	private cookies: Record<string, string>;
 
 	/** Wildcard match from the Vercel build output config */
-	private wildcardMatch: VercelWildCard | undefined;
+	private wildcardMatch: WildCard | undefined;
 
 	/** Path for the matched route */
 	public path: string;

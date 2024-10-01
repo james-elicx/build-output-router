@@ -1,4 +1,5 @@
-import type { Phase, Route, RoutesGroupedByPhase, SourceRoute } from '../types';
+import type { Phase, Route, RoutesGroupedByPhase, SourceRoute } from '@/types/build-output';
+
 import { isHandlerRoute } from './is-handler-route';
 
 const append = (str: string, suffix: string) => (str.endsWith(suffix) ? str : `${str}${suffix}`);

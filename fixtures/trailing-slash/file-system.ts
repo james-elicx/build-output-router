@@ -1,4 +1,5 @@
-import type { BuildOutput } from '../../src/types';
+import type { BuildOutput } from '@/types/build-output';
+
 import { functionAsset, htmlAsset, staticAsset } from '../run-test-set';
 
 export const fileSystem: BuildOutput = {

@@ -1,6 +1,33 @@
-/* eslint-disable @typescript-eslint/no-use-before-define */
-import type { VercelHasField } from '../types';
-import { applyPCREMatches, matchPCRE } from './pcre';
+import type { SourceRouteHasField } from '@/types/build-output';
+import { applyPCREMatches, matchPCRE } from '@/utils/pcre';
+
+/**
+ * Gets the has field PCRE match results, and tries to apply any named capture groups to a
+ * route destination.
+ *
+ * @param hasValue The has field value to match against.
+ * @param foundValue The value found in the request.
+ * @param routeDest Destination to apply match to.
+ * @returns Whether the match is valid, and the destination with the match applied.
+ */
+function getHasFieldPCREMatchResult(
+	hasValue: string,
+	foundValue: string | null,
+	routeDest?: string,
+): { valid: boolean; newRouteDest?: string } {
+	const { match, captureGroupKeys } = matchPCRE(hasValue, foundValue);
+
+	if (routeDest && match && captureGroupKeys.length) {
+		return {
+			valid: !!match,
+			newRouteDest: applyPCREMatches(routeDest, match, captureGroupKeys, {
+				namedOnly: true,
+			}),
+		};
+	}
+
+	return { valid: !!match };
+}
 
 type HasFieldRequestProperties = {
 	url: URL;
@@ -18,7 +45,7 @@ type HasFieldRequestProperties = {
  * @returns Whether the request matches the `has` record conditions, and the new destination if it changed.
  */
 export function checkHasField(
-	has: VercelHasField,
+	has: SourceRouteHasField,
 	{ url, cookies, headers, routeDest }: HasFieldRequestProperties,
 ): { valid: boolean; newRouteDest?: string } {
 	// eslint-disable-next-line default-case
@@ -50,32 +77,4 @@ export function checkHasField(
 			return { valid: url.searchParams.has(has.key) };
 		}
 	}
-}
-
-/**
- * Gets the has field PCRE match results, and tries to apply any named capture groups to a
- * route destination.
- *
- * @param hasValue The has field value to match against.
- * @param foundValue The value found in the request.
- * @param routeDest Destination to apply match to.
- * @returns Whether the match is valid, and the destination with the match applied.
- */
-function getHasFieldPCREMatchResult(
-	hasValue: string,
-	foundValue: string | null,
-	routeDest?: string,
-): { valid: boolean; newRouteDest?: string } {
-	const { match, captureGroupKeys } = matchPCRE(hasValue, foundValue);
-
-	if (routeDest && match && captureGroupKeys.length) {
-		return {
-			valid: !!match,
-			newRouteDest: applyPCREMatches(routeDest, match, captureGroupKeys, {
-				namedOnly: true,
-			}),
-		};
-	}
-
-	return { valid: !!match };
 }

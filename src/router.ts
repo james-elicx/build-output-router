@@ -1,8 +1,9 @@
-import type { ConfigMetadata } from './routes-matcher';
+import type { RoutesGroupedByPhase } from '@/types/build-output';
+import type { RequestContext } from '@/types/request-context';
+import { applyHeaders, applySearchParams, isUrl } from '@/utils/http';
+
+import type { ConfigMetadata, RoutingMatch } from './routes-matcher';
 import { RoutesMatcher } from './routes-matcher';
-import type { RequestContext, RoutesGroupedByPhase } from './types';
-import type { RoutingMatch } from './utils';
-import { applyHeaders, applySearchParams, isUrl } from './utils';
 
 export class Router {
 	constructor(

@@ -1,71 +1,19 @@
-import { describe, expect, test } from 'vitest';
+import { expect, suite, test } from 'vitest';
 
-import type { VercelImageRemotePattern, VercelImagesConfig } from '../types';
-import { formatResp, getResizingProperties, isRemotePatternMatch } from './images';
+import type { ImagesConfig } from '@/types/images';
 
-describe('isRemotePatternMatch', () => {
-	test('hostname matches correctly', () => {
-		const config: VercelImageRemotePattern = {
-			hostname: '^via\\.placeholder\\.com$',
-		};
-
-		const validUrl = new URL('https://via.placeholder.com/images/1.jpg');
-		expect(isRemotePatternMatch(validUrl, config)).toEqual(true);
-
-		const invalidUrl = new URL('https://example.com/images/1.jpg');
-		expect(isRemotePatternMatch(invalidUrl, config)).toEqual(false);
-	});
-
-	test('protocol matches correctly', () => {
-		const config: VercelImageRemotePattern = {
-			protocol: 'https',
-			hostname: '^via\\.placeholder\\.com$',
-		};
-
-		const validUrl = new URL('https://via.placeholder.com/images/1.jpg');
-		expect(isRemotePatternMatch(validUrl, config)).toEqual(true);
-
-		const invalidUrl = new URL('http://via.placeholder.com/images/1.jpg');
-		expect(isRemotePatternMatch(invalidUrl, config)).toEqual(false);
-	});
-
-	test('port matches correctly', () => {
-		const config: VercelImageRemotePattern = {
-			hostname: '^via\\.placeholder\\.com$',
-			port: '9000',
-		};
-
-		const validUrl = new URL('https://via.placeholder.com:9000/images/1.jpg');
-		expect(isRemotePatternMatch(validUrl, config)).toEqual(true);
-
-		const invalidUrl = new URL('http://via.placeholder.com/images/1.jpg');
-		expect(isRemotePatternMatch(invalidUrl, config)).toEqual(false);
-	});
-
-	test('pathname matches correctly', () => {
-		const config: VercelImageRemotePattern = {
-			hostname: '^via\\.placeholder\\.com$',
-			pathname: '^/images/.*$',
-		};
-
-		const validUrl = new URL('https://via.placeholder.com:9000/images/1.jpg');
-		expect(isRemotePatternMatch(validUrl, config)).toEqual(true);
-
-		const invalidUrl = new URL('http://via.placeholder.com/videos/1.mp4');
-		expect(isRemotePatternMatch(invalidUrl, config)).toEqual(false);
-	});
-});
+import { getResizingProperties } from './get-resizing-properties';
 
 const baseUrl = 'https://localhost/_next/image?url=';
 const baseValidUrl = `${baseUrl}%2Fimages%2F1.jpg`;
-const baseConfig: VercelImagesConfig = {
+const baseConfig: ImagesConfig = {
 	domains: ['example.com'],
 	sizes: [640, 750, 828, 1080, 1200],
 	remotePatterns: [{ hostname: '^via\\.placeholder\\.com$' }],
 	formats: ['image/avif', 'image/webp'],
 };
 
-describe('getResizingProperties', () => {
+suite('getResizingProperties', () => {
 	test('invalid method fails', () => {
 		const url = new URL(baseValidUrl);
 		const req = new Request(url, { method: 'POST' });
@@ -73,7 +21,7 @@ describe('getResizingProperties', () => {
 		expect(getResizingProperties(req)).toEqual(undefined);
 	});
 
-	describe('request search params', () => {
+	suite('request search params', () => {
 		test('invalid url fails', () => {
 			const url = new URL(baseUrl);
 			const req = new Request(url);
@@ -117,7 +65,7 @@ describe('getResizingProperties', () => {
 		});
 	});
 
-	describe('relative (same origin) image', () => {
+	suite('relative (same origin) image', () => {
 		test('image with valid request options succeeds', () => {
 			const url = new URL(`${baseValidUrl}&w=640`);
 			const req = new Request(url);
@@ -179,7 +127,7 @@ describe('getResizingProperties', () => {
 		});
 	});
 
-	describe('protocol relative (potentially another origin) image', () => {
+	suite('protocol relative (potentially another origin) image', () => {
 		const protocolRelativePrefixes = ['%2F%2F', '//', '%2f%2f', '%2f/', '/%2f'];
 
 		protocolRelativePrefixes.forEach((prefix) => {
@@ -204,7 +152,7 @@ describe('getResizingProperties', () => {
 		});
 	});
 
-	describe('external image', () => {
+	suite('external image', () => {
 		test('external image fails with disallowed domain', () => {
 			const url = new URL(`${baseUrl}https%3A%2F%2Finvalid.com%2Fimage.jpg&w=640`);
 			const req = new Request(url);
@@ -237,7 +185,7 @@ describe('getResizingProperties', () => {
 		});
 	});
 
-	describe('request headers', () => {
+	suite('request headers', () => {
 		test('return correct format for `accept` header (webp)', () => {
 			const url = new URL(`${baseValidUrl}&w=640`);
 			const req = new Request(url, { headers: { Accept: 'image/webp' } });
@@ -263,43 +211,5 @@ describe('getResizingProperties', () => {
 				options: { format: 'avif', width: 640, quality: 75 },
 			});
 		});
-	});
-});
-
-describe('formatResp', () => {
-	test('applies content security policy from the config', () => {
-		const config = { ...baseConfig, contentSecurityPolicy: 'default-src' };
-		const imageUrl = new URL('https://localhost/images/1.jpg');
-
-		const newResp = formatResp(new Response(), imageUrl, config);
-		expect(newResp.headers.get('Content-Security-Policy')).toEqual('default-src');
-	});
-
-	test('applies content disposition from the config', () => {
-		const config = { ...baseConfig, contentDispositionType: 'inline' };
-		const imageUrl = new URL('https://localhost/images/1.jpg');
-
-		const newResp = formatResp(new Response(), imageUrl, config);
-		expect(newResp.headers.get('Content-Disposition')).toEqual('inline; filename="1.jpg"');
-	});
-
-	test('uses cache ttl from config when no cache header is present', () => {
-		const config = baseConfig;
-		const imageUrl = new URL('https://localhost/images/1.jpg');
-
-		const newResp = formatResp(new Response(), imageUrl, config);
-		expect(newResp.headers.get('Cache-Control')).toEqual('public, max-age=60');
-	});
-
-	test('does not override the cache header when one is present', () => {
-		const config = baseConfig;
-		const imageUrl = new URL('https://localhost/images/1.jpg');
-
-		const newResp = formatResp(
-			new Response(null, { headers: { 'cache-control': 'test-value' } }),
-			imageUrl,
-			config,
-		);
-		expect(newResp.headers.get('Cache-Control')).toEqual('test-value');
 	});
 });

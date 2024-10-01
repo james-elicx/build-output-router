@@ -1,4 +1,4 @@
-import type { HandlerRoute, Route } from '../types';
+import type { HandlerRoute, Route } from '@/types/build-output';
 
 /**
  * Determine whether a route is a source route or a handler.
