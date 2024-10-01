@@ -21,5 +21,5 @@ The Build Output Router was originally designed for Cloudflare's [next-on-pages]
 
 This repository became the home for the core router (while preserving old Git history) to enable it to be re-usable as a generic router for all Build Output API (v3) projects.
 
-> [!NOTE]
-> It is recommended to lock the version you use to a specific patch release.
+> [!WARNING]
+> There _might_ be changes the library's public API. It is recommended to lock the version you use to a specific patch release.
