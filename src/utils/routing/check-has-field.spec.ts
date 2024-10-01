@@ -1,12 +1,13 @@
 import { parse } from 'cookie';
-import { describe, expect, test } from 'vitest';
+import { expect, suite, test } from 'vitest';
 
-import type { VercelHasField } from '../types';
-import { checkHasField } from './matcher';
+import type { SourceRouteHasField } from '@/types/build-output';
+
+import { checkHasField } from './check-has-field';
 
 type HasFieldTestCase = {
 	name: string;
-	has: VercelHasField;
+	has: SourceRouteHasField;
 	dest?: string;
 	expected: { valid: boolean; newRouteDest?: string };
 };
@@ -25,7 +26,7 @@ const req = new Request(
 const url = new URL(req.url);
 const cookies = parse(req.headers.get('cookie') ?? '');
 
-describe('checkHasField', () => {
+suite('checkHasField', () => {
 	const testCases: HasFieldTestCase[] = [
 		{
 			name: 'host: valid host returns true',

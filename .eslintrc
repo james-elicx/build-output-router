@@ -13,7 +13,8 @@
 			"error",
 			{ "devDependencies": ["**/*.spec.ts", "vite.config.ts"] },
 		],
+		"import/extensions": ["error", "never"],
 		"no-console": "error",
 	},
-	"ignorePatterns": ["dist", "scripts", "fixtures/**/*.js", "fixtures/**/*.cjs"],
+	"ignorePatterns": ["dist", "scripts", "fixtures/**/*.js", "fixtures/**/*.cjs", "coverage"],
 }

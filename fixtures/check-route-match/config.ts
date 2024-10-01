@@ -1,4 +1,4 @@
-import type { VercelConfig } from '../../src/types';
+import type { VercelConfig } from '@/types/vercel-config';
 
 export const config: VercelConfig = {
 	version: 3,

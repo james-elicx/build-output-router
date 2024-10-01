@@ -5,6 +5,7 @@ import { resolve } from 'node:path';
 
 import { defineConfig } from 'vite';
 import dts from 'vite-plugin-dts';
+import tsconfigPaths from 'vite-tsconfig-paths';
 
 const normalizeResolve = (...path: string[]) => resolve(__dirname, ...path).replace(/\\/g, '/');
 
@@ -41,6 +42,7 @@ export default defineConfig({
 		minify: 'esbuild',
 	},
 	plugins: [
+		tsconfigPaths(),
 		dts({
 			tsconfigPath: normalizeResolve('tsconfig.json'),
 			include: ['src/**/*.{ts,tsx}', 'env.d.ts'],

@@ -11,7 +11,10 @@
 		"stripInternal": true,
 		"declaration": true,
 		"declarationMap": true,
-		"exactOptionalPropertyTypes": false
+		"exactOptionalPropertyTypes": false,
+		"paths": {
+			"@/*": ["src/*/index.ts"]
+		}
 	},
 	"include": ["**/*.ts"],
 	"exclude": ["dist"]

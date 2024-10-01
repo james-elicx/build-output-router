@@ -1,4 +1,5 @@
-import type { Route, RoutesGroupedByPhase } from '../types';
+import type { Route, RoutesGroupedByPhase } from '@/types/build-output';
+
 import { isHandlerRoute } from './is-handler-route';
 
 /**
