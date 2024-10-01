@@ -1,5 +1,6 @@
+import type { ConfigMetadata } from './routes-matcher';
 import { RoutesMatcher } from './routes-matcher';
-import type { ConfigMetadata, RequestContext, RoutesGroupedByPhase } from './types';
+import type { RequestContext, RoutesGroupedByPhase } from './types';
 import type { RoutingMatch } from './utils';
 import { applyHeaders, applySearchParams, isUrl } from './utils';
 

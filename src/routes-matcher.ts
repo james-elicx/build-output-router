@@ -1,7 +1,6 @@
 import { parse } from 'cookie';
 
 import type {
-	ConfigMetadata,
 	Phase,
 	RequestContext,
 	RoutesGroupedByPhase,
@@ -20,6 +19,11 @@ import {
 	matchPCRE,
 	parseAcceptLanguage,
 } from './utils';
+
+export type ConfigMetadata = {
+	locales: Set<string>;
+	wildcardConfig: VercelWildCard[] | undefined;
+};
 
 export type CheckRouteStatus = 'skip' | 'next' | 'done' | 'error';
 export type CheckPhaseStatus = Extract<CheckRouteStatus, 'error' | 'done'>;
