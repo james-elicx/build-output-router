@@ -11,7 +11,7 @@
 
 		"import/no-extraneous-dependencies": [
 			"error",
-			{ "devDependencies": ["**/*.spec.ts", "vite.config.ts"] },
+			{ "devDependencies": ["**/*.spec.ts", "vite.config.ts", "fixtures/**/*.ts"] },
 		],
 		"import/extensions": ["error", "never"],
 		"no-console": "error",
