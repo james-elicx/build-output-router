@@ -1,6 +1,6 @@
 {
 	"name": "build-output-router",
-	"version": "0.0.1",
+	"version": "0.1.0",
 	"description": "Router for the Build Output API (v3)",
 	"license": "MIT",
 	"author": "James",
