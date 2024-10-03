@@ -1,16 +1,28 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-// eslint-disable-next-line import/no-extraneous-dependencies
 import { expect, suite, test, vi } from 'vitest';
 
-import type { BuildOutputItem, EdgeFunction, ExecutionContext } from '@/types/build-output';
-import type { Assets, Fetcher } from '@/types/request-context';
-import type { VercelConfig } from '@/types/vercel-config';
-import { applyHeaders, applySearchParams, createRouteRequest } from '@/utils/http';
-import { collectLocalesFromRoutes, groupRoutesByPhase } from '@/utils/routing';
+import type { Config } from '@/router';
+import { applyHeaders, applySearchParams, createRouteRequest } from '@/router/http';
+import { collectLocalesFromRoutes, groupRoutesByPhase } from '@/router/utils';
 
+import type { RequestContext } from '../src';
 import { Router } from '../src';
+
+export type BuildOutputItem =
+	| { type: 'function' | 'middleware'; entrypoint: string }
+	| { type: 'static'; path?: string; headers?: Record<string, string> };
+
+export type BuildOutput = Record<string, BuildOutputItem>;
+
+type Fetcher = {
+	fetch: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+};
+
+type EdgeFunction = {
+	default: (request: Request, context: RequestContext['ctx']) => Response | Promise<Response>;
+};
 
 type TestCase = {
 	name: string;
@@ -64,7 +76,7 @@ export const functionAsset = (path: string) =>
 export const runTestSet = (ctx: {
 	name: string;
 	desc: string;
-	config: VercelConfig;
+	config: Config;
 	fileSystem: Record<string, BuildOutputItem>;
 	cases: TestCase[];
 }) => {
@@ -77,9 +89,7 @@ export const runTestSet = (ctx: {
 
 	const outputDir = join(__dirname, ctx.name, 'output');
 
-	const executionContext: ExecutionContext = {
-		waitUntil: () => null,
-	};
+	const executionCtx: RequestContext['ctx'] = { waitUntil: () => null };
 
 	const assetsFetcher: Fetcher = {
 		fetch: (input: RequestInfo | URL) => {
@@ -108,7 +118,7 @@ export const runTestSet = (ctx: {
 					const request = new Request(url, { method, headers });
 					const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => null);
 
-					const assets: Assets = {
+					const assets: RequestContext['assets'] = {
 						has: (p) => p in ctx.fileSystem,
 						get: (p) => {
 							const entry = ctx.fileSystem[p];
@@ -116,6 +126,9 @@ export const runTestSet = (ctx: {
 
 							return {
 								kind: entry.type,
+								isStaticAsset: entry.type === 'static',
+								isMiddleware: entry.type === 'middleware',
+								isRouteFunction: entry.type === 'function',
 								fetch: async ({ path, searchParams }) => {
 									let resp: Response | undefined;
 
@@ -129,7 +142,7 @@ export const runTestSet = (ctx: {
 											const edgeFuncJs = readFileSync(join(outputDir, entry.entrypoint)).toString();
 											// eslint-disable-next-line no-eval
 											const edgeFunction: EdgeFunction = eval(edgeFuncJs.toString());
-											resp = await edgeFunction.default(req, executionContext);
+											resp = await edgeFunction.default(req, executionCtx);
 											break;
 										}
 										case 'static': {
@@ -151,7 +164,7 @@ export const runTestSet = (ctx: {
 						},
 					};
 
-					const res = await router.fetch({ request, assets, ctx: executionContext });
+					const res = await router.fetch({ request, assets, ctx: executionCtx });
 
 					expect(res.status).toEqual(expected.status);
 					const textContent = await res.text();

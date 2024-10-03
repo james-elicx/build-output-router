@@ -1,6 +1,6 @@
-import type { VercelConfig } from '@/types/vercel-config';
+import type { Config } from '@/router';
 
-export const config: VercelConfig = {
+export const config: Config = {
 	version: 3,
 	routes: [
 		{ src: '^/valid-src-only$', dest: '/' },
