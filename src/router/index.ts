@@ -1,4 +1,4 @@
-export { applyHeaders, applySearchParams } from './http';
+export { applyHeaders, applySearchParams, createMutableResponse, createRouteRequest } from './http';
 export * from './request-context';
 export * from './router';
 export * from './types';
