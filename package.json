@@ -22,9 +22,6 @@
 			"types": "./dist/images/index.d.ts"
 		}
 	},
-	"files": [
-		"dist"
-	],
 	"publishConfig": {
 		"directory": "dist"
 	},
